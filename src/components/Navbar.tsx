@@ -6,6 +6,7 @@ import cart from "../assets/cart.svg";
 import hashtag from "../assets/hashtag.svg";
 import { FaBars } from "react-icons/fa";
 import AppContext from "../context/AppContext";
+import { Link } from "react-router-dom";
 
 const Navbar = () => {
   const ctx = useContext(AppContext);
@@ -18,7 +19,9 @@ const Navbar = () => {
             id="brand"
             className="flex items-center justify-between ml-3 mb-3 md:mb-0"
           >
-            <img src={logo} alt="" width={35} className="" />
+            <Link to="/">
+              <img src={logo} alt="" width={35} className="" />
+            </Link>
 
             <button
               className="hover:bg-slate-300 p-2 rounded md:hidden"
@@ -35,6 +38,12 @@ const Navbar = () => {
               isOpen ? "" : "hidden"
             }`}
           >
+            <Link
+              to="/init"
+              className="mx-4 text-lg uppercase hover:text-blue-600 py-2"
+            >
+              Init
+            </Link>
             <a href="" className="mx-4 hover:text-blue-600 py-2">
               <img src={chart} alt="chart" className="inline mr-1" width={30} />
               Chart
