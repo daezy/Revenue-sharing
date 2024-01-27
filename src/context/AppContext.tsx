@@ -28,6 +28,7 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = (
   const [address, setAddress] = useState<string>("");
 
   useEffect(() => {
+    setAddress("");
     // logic to fetch aany data or connect to wallet once app lauches
   }, []);
 
