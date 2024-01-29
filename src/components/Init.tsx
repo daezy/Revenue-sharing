@@ -2,9 +2,10 @@ import React, { useContext, useState } from "react";
 import AppContext from "../context/AppContext";
 
 const Init = () => {
-  const [amount, setAmount] = useState<number>();
+  const [amount, setAmount] = useState<number>(0);
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
+    ctx.handleInit(amount)
   };
   const ctx = useContext(AppContext);
 

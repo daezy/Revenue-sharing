@@ -1,40 +1,17 @@
 import React, { useEffect, useState } from "react";
-import { PublicKey } from "@solana/web3.js";
+import {
+  Connection,
+  PublicKey,
+} from "@solana/web3.js";
 
-type AppContextType = {
-  isWalletConnected: boolean;
-  walletAddress: string;
-  successMsg: string | null;
-  errorMsg: string | null;
-  poolTotal: number;
-  nextShareTotal: number;
-  tokenBalance: number;
-  tokenClaimed: number;
-  connectWallet: () => void;
-  disconnectWallet: () => void;
-  onClaim: () => void;
-};
-
-type PhantomEvent = "disconnect" | "connect" | "accountChanged";
-
-interface ConnectOpts {
-  onlyIfTrusted: boolean;
-}
-
-interface PhantomProvider {
-  connect: (opts?: Partial<ConnectOpts>) => Promise<{ publicKey: PublicKey }>;
-  disconnect: () => Promise<void>;
-  on: (event: PhantomEvent, callback: (args: any) => void) => void;
-  isPhantom: boolean;
-}
-
-type WindowWithSolana = Window & {
-  solana?: PhantomProvider;
-};
+import { SOLANA_LOCAL_NET_RPC_URL } from "../solana/constant.ts";
+import { AppContextType, PhantomProvider, WindowWithSolana } from "../types.ts";
+import {initializeContract} from "../solana/utils.ts";
 
 const AppContext = React.createContext<AppContextType>({
   isWalletConnected: false,
-  walletAddress: "",
+  walletAddress: PublicKey.default,
+  connection: new Connection(SOLANA_LOCAL_NET_RPC_URL),
   successMsg: "",
   errorMsg: "",
   poolTotal: 0.0,
@@ -44,29 +21,26 @@ const AppContext = React.createContext<AppContextType>({
   connectWallet: () => {},
   disconnectWallet: () => {},
   onClaim: () => {},
+  handleInit: async () => {}
 });
 
 export const AppContextProvider: React.FC<{ children: React.ReactNode }> = (
   props
 ) => {
-  const [walletAvail, setWalletAvail] = useState(false);
   const [provider, setProvider] = useState<PhantomProvider | null>(null);
   const [connected, setConnected] = useState(false);
-  const [pubKey, setPubKey] = useState<string>("");
+  const [connection, setConnection] = useState<Connection>(new Connection(SOLANA_LOCAL_NET_RPC_URL));
+  const [pubKey, setPubKey] = useState<PublicKey>(PublicKey.default);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
-    // logic to fetch aany data or connect to wallet once app lauches
-    if (walletAvail) {
-      console.log("available");
-    }
+    // logic to fetch any data or connect to wallet once app launches
     if ("solana" in window) {
       const solWindow = window as WindowWithSolana;
       if (solWindow?.solana?.isPhantom) {
         setProvider(solWindow.solana);
-        setWalletAvail(true);
-        // Attemp an eager connection
+        // Attempt an eager connection
         solWindow.solana.connect({ onlyIfTrusted: true });
       }
     }
@@ -75,15 +49,16 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = (
   useEffect(() => {
     provider?.on("connect", (publicKey: PublicKey) => {
       setConnected(true);
-      setPubKey(String(publicKey));
+      setPubKey(publicKey);
       setSuccess("Wallet Connected successfully");
       setTimeout(() => {
         setSuccess("");
       }, 3000);
+      setConnection(new Connection(SOLANA_LOCAL_NET_RPC_URL, "confirmed"));
     });
     provider?.on("disconnect", () => {
       setConnected(false);
-      setPubKey("");
+      setPubKey(PublicKey.default);
       setSuccess("Wallet Disconnected successfully");
       setTimeout(() => {
         setSuccess("");
@@ -94,8 +69,18 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = (
   const handleClaim = (): void => {
     //logic for claiming
   };
+
+  const handleInit = async (amount: number) => {
+    if (provider) {
+      if (amount <= 0) {
+        setError("Invalid Amount Entered")
+        return
+      }
+      await initializeContract(connection, provider, pubKey, amount)
+    }
+  };
+
   const handleConnectWallet = (): void => {
-    console.log(`connect handler`);
     provider?.connect().catch(() => {
       setError("Could not connect wallet");
       setTimeout(() => {
@@ -104,8 +89,7 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = (
     });
   };
 
-  const handleDisonnectWallet = (): void => {
-    console.log("disconnect handler");
+  const handleDisconnectWallet = (): void => {
     provider?.disconnect().catch(() => {
       setError("Could not disconnect wallet");
       setTimeout(() => {
@@ -119,6 +103,7 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = (
       value={{
         isWalletConnected: connected,
         walletAddress: pubKey,
+        connection: connection,
         successMsg: success,
         errorMsg: error,
         poolTotal: 0.0,
@@ -126,8 +111,9 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = (
         tokenBalance: 0.0,
         tokenClaimed: 0.0,
         connectWallet: handleConnectWallet,
-        disconnectWallet: handleDisonnectWallet,
+        disconnectWallet: handleDisconnectWallet,
         onClaim: handleClaim,
+        handleInit: handleInit,
       }}
     >
       {props.children}

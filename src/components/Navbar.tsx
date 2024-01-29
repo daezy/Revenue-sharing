@@ -78,7 +78,7 @@ const Navbar = () => {
             }}
           >
             {ctx.isWalletConnected
-              ? ctx.walletAddress.slice(0, 15)
+              ? ctx.walletAddress.toString().slice(0, 15)
               : "Connect Wallet"}
           </button>
         </div>
