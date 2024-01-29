@@ -8,6 +8,7 @@ export interface ContractData {
     tokenMintPubkey: Uint8Array;
     pdaBump: Uint8Array;
     depositPerPeriod: Uint8Array;
+    minimumTokenBalanceForClaim: Uint8Array;
 }
 
 export const ContractDataAccountLayout = struct<ContractData>([
@@ -15,5 +16,6 @@ export const ContractDataAccountLayout = struct<ContractData>([
     publicKey('adminPubKey'),
     publicKey('tokenMintPubKey'),
     u8('pdaBump'),
-    u64('depositPerPeriod')
+    u64('depositPerPeriod'),
+    u64('minimumTokenBalanceForClaim')
 ]);
