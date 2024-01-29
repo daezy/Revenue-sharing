@@ -69,10 +69,16 @@ const Navbar = () => {
 
           <button
             className="bg-blue-600 text-slate-100 rounded-xl px-4 py-3 hover:bg-blue-800"
-            onClick={ctx.connectWallet}
+            onClick={() => {
+              if (!ctx.isWalletConnected) {
+                return ctx.connectWallet();
+              } else {
+                return ctx.disconnectWallet();
+              }
+            }}
           >
             {ctx.isWalletConnected
-              ? ctx.walletAddress.slice(0, 12)
+              ? ctx.walletAddress.slice(0, 15)
               : "Connect Wallet"}
           </button>
         </div>

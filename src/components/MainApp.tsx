@@ -12,6 +12,17 @@ const MainApp = () => {
   return (
     <>
       <div className="my-20 bg-slate-100 w-11/12 md:w-8/12 lg:w-5/12 mx-auto p-6 py-9 rounded-xl">
+        {ctx.successMsg && (
+          <div className="bg-green-500 text-white p-4 text-center my-4 rounded-lg">
+            <p>{ctx.successMsg}</p>
+          </div>
+        )}
+        {ctx.errorMsg && (
+          <div className="bg-green-700 text-white p-4 text-center my-4 rounded-lg">
+            <p>{ctx.errorMsg}</p>
+          </div>
+        )}
+
         <h2 className="font-bold tracking-wider">REVENUE SHARING</h2>
         <div className="p-6 text-center text-slate-600">
           <p>You must hold 5.000.000 $CEX to claim</p>
