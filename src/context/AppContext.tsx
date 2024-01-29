@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Connection, PublicKey, clusterApiUrl } from "@solana/web3.js";
+import { PublicKey } from "@solana/web3.js";
 
 type AppContextType = {
   isWalletConnected: boolean;
@@ -52,12 +52,15 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = (
   const [walletAvail, setWalletAvail] = useState(false);
   const [provider, setProvider] = useState<PhantomProvider | null>(null);
   const [connected, setConnected] = useState(false);
-  const [pubKey, setPubKey] = useState<string | null>(null);
+  const [pubKey, setPubKey] = useState<string>("");
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
     // logic to fetch aany data or connect to wallet once app lauches
+    if (walletAvail) {
+      console.log("available");
+    }
     if ("solana" in window) {
       const solWindow = window as WindowWithSolana;
       if (solWindow?.solana?.isPhantom) {
@@ -71,7 +74,6 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = (
 
   useEffect(() => {
     provider?.on("connect", (publicKey: PublicKey) => {
-      console.log(`connect event: ${publicKey}`);
       setConnected(true);
       setPubKey(String(publicKey));
       setSuccess("Wallet Connected successfully");
@@ -80,9 +82,8 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = (
       }, 3000);
     });
     provider?.on("disconnect", () => {
-      console.log("disconnect event");
       setConnected(false);
-      setPubKey(null);
+      setPubKey("");
       setSuccess("Wallet Disconnected successfully");
       setTimeout(() => {
         setSuccess("");
@@ -95,7 +96,7 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = (
   };
   const handleConnectWallet = (): void => {
     console.log(`connect handler`);
-    provider?.connect().catch((err) => {
+    provider?.connect().catch(() => {
       setError("Could not connect wallet");
       setTimeout(() => {
         setError("");
@@ -105,7 +106,7 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = (
 
   const handleDisonnectWallet = (): void => {
     console.log("disconnect handler");
-    provider?.disconnect().catch((err) => {
+    provider?.disconnect().catch(() => {
       setError("Could not disconnect wallet");
       setTimeout(() => {
         setError("");
