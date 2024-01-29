@@ -1,8 +1,8 @@
 import {Connection, PublicKey, SendOptions, Transaction} from "@solana/web3.js";
-import BN from "bn.js";
 
 export type AppContextType = {
     isWalletConnected: boolean;
+    canClaim: boolean,
     walletAddress: PublicKey;
     contractData: ContractDataInterface | null,
     balances: { token: string, sol: string},
@@ -47,6 +47,6 @@ export interface ContractDataInterface {
     adminPubkey: PublicKey,
     tokenMintPubkey: PublicKey,
     pdaBump: Uint8Array,
-    depositPerPeriod: BN,
-    minimumTokenBalanceForClaim: BN,
+    depositPerPeriod: number,
+    minimumTokenBalanceForClaim: number,
 }

@@ -1,10 +1,11 @@
 import { useContext } from "react";
 import {
   AiOutlineSecurityScan,
-  AiOutlineHeatMap,
-  AiOutlineClockCircle,
+  AiOutlineHeatMap
 } from "react-icons/ai";
 import AppContext from "../context/AppContext";
+import {formatAmount} from "../solana/utils.ts";
+import {REV_SHARE_TOKEN_DECIMALS} from "../solana/constant.ts";
 
 const MainApp = () => {
   const ctx = useContext(AppContext);
@@ -25,7 +26,7 @@ const MainApp = () => {
 
         <h2 className="font-bold tracking-wider">REVENUE SHARING</h2>
         <div className="p-6 text-center text-slate-600">
-          <p>You must hold 5.000.000 $CEX to claim</p>
+          <p>You must hold {formatAmount(ctx.contractData ? ctx.contractData.minimumTokenBalanceForClaim : 0, REV_SHARE_TOKEN_DECIMALS)} $CEX to claim</p>
         </div>
 
         <div id="details" className="">
@@ -42,26 +43,26 @@ const MainApp = () => {
               </span>
               <span>{ctx.nextShareTotal} SOL</span>
             </li>
+            {/*<li className="flex items-center justify-between p-3 mb-1">*/}
+            {/*  <span className="flex items-center">*/}
+            {/*    <AiOutlineClockCircle /> &nbsp; Next Share Unlock*/}
+            {/*  </span>*/}
+            {/*  <span>{Date.now()}</span>*/}
+            {/*</li>*/}
             <li className="flex items-center justify-between p-3 mb-1">
-              <span className="flex items-center">
-                <AiOutlineClockCircle /> &nbsp; Next Share Unlock
-              </span>
-              <span>{Date.now()}</span>
+              <span>$CEX Balance</span>
+              <span>{ctx.balances.token} $CEX</span>
             </li>
             <li className="flex items-center justify-between p-3 mb-1">
-              <span>Balance</span>
-              <span>{ctx.tokenBalance} $CEX</span>
-            </li>
-            <li className="flex items-center justify-between p-3 mb-1">
-              <span>Claimed</span>
-              <span>{ctx.tokenClaimed} $CEX</span>
+              <span>SOL Balance</span>
+              <span>{ctx.balances.sol} SOL</span>
             </li>
           </ul>
         </div>
 
         <button
           className="w-full text-center text-slate-100 bg-blue-600 hover:bg-blue-800 py-3 rounded-lg disabled:bg-slate-400"
-          disabled={!ctx.isWalletConnected}
+          disabled={!ctx.isWalletConnected || !ctx.canClaim}
           onClick={ctx.onClaim}
         >
           Claim

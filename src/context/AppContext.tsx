@@ -1,16 +1,30 @@
 import React, { useEffect, useState } from "react";
 import {
-  Connection,
+  Connection, LAMPORTS_PER_SOL,
   PublicKey,
 } from "@solana/web3.js";
 
-import { SOLANA_LOCAL_NET_RPC_URL } from "../solana/constant.ts";
-import { AppContextType, PhantomProvider, WindowWithSolana } from "../types.ts";
-import {initializeContract} from "../solana/utils.ts";
+import {
+  REV_SHARE_DATA_ACCOUNT,
+  REV_SHARE_PDA_ADDRESS, REV_SHARE_TOKEN_DECIMALS,
+  REV_SHARE_TOKEN_MINT,
+  SOLANA_LOCAL_NET_RPC_URL
+} from "../solana/constant.ts";
+import {AppContextType, ContractDataInterface, PhantomProvider, WindowWithSolana} from "../types.ts";
+import {
+  calculateShare, formatAmount,
+  getContractData,
+  getOrCreateAssociatedTokenAccount,
+  getUserBalances, handleClaim,
+  initializeContract
+} from "../solana/utils.ts";
 
 const AppContext = React.createContext<AppContextType>({
   isWalletConnected: false,
+  canClaim: false,
   walletAddress: PublicKey.default,
+  balances: { token: "", sol: ""},
+  contractData: null,
   connection: new Connection(SOLANA_LOCAL_NET_RPC_URL),
   successMsg: "",
   errorMsg: "",
@@ -33,6 +47,12 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = (
   const [pubKey, setPubKey] = useState<PublicKey>(PublicKey.default);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
+  const [ tokenBalance, setTokenBalance ] = useState("0");
+  const [ solBalance, setSolBalance ] = useState("0");
+  const [ contractData, setContractData ] = useState<ContractDataInterface | null>(null);
+  const [ poolTotal, setPoolTotal ] = useState("0");
+  const [ poolShare, setPoolShare ] = useState("0");
+  const [ canClaim, setCanClaim ] = useState(false);
 
   useEffect(() => {
     // logic to fetch any data or connect to wallet once app launches
@@ -47,6 +67,50 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = (
   }, []);
 
   useEffect(() => {
+    const setUp = async (connection: Connection, payer: PublicKey, provider: PhantomProvider) => {
+      const poolBalance = (await connection.getBalance(
+          new PublicKey(REV_SHARE_PDA_ADDRESS),
+          "confirmed"
+      ))/LAMPORTS_PER_SOL;
+      let globCData;
+      try {
+        const cData = await getContractData(connection, new PublicKey(REV_SHARE_DATA_ACCOUNT));
+        setContractData(cData);
+        setPoolTotal(poolBalance.toString());
+        globCData = cData;
+      } catch (e) {
+        setError(`Error Fetching contract account ${e}`)
+      }
+      const userTokenAccount = await getOrCreateAssociatedTokenAccount(
+          connection,
+          payer,
+          new PublicKey(REV_SHARE_TOKEN_MINT),
+          payer,
+          provider
+      );
+      console.log(`User Token Account: ${userTokenAccount.address}`)
+      try {
+        const { tokenBalance, solBalance } = await getUserBalances(
+            connection,
+            userTokenAccount.address,
+            payer
+        );
+        setTokenBalance(tokenBalance.toString());
+        setSolBalance(solBalance.toString());
+        if (globCData) {
+          if (tokenBalance < formatAmount(globCData.minimumTokenBalanceForClaim, REV_SHARE_TOKEN_DECIMALS)) {
+            setError("You're not eligible to claim due to insufficient balance");
+            setPoolShare("0");
+          } else {
+            const poolShare = await calculateShare(connection, tokenBalance, globCData, new PublicKey(REV_SHARE_TOKEN_MINT));
+            setPoolShare(poolShare.toString());
+            setCanClaim(true);
+          }
+        }
+      } catch (e) {
+        setError(`Error Fetching User Balances ${e}`)
+      }
+    }
     provider?.on("connect", (publicKey: PublicKey) => {
       setConnected(true);
       setPubKey(publicKey);
@@ -55,6 +119,7 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = (
         setSuccess("");
       }, 3000);
       setConnection(new Connection(SOLANA_LOCAL_NET_RPC_URL, "confirmed"));
+      setUp(connection, publicKey, provider).then((res) => console.log(res))
     });
     provider?.on("disconnect", () => {
       setConnected(false);
@@ -66,17 +131,34 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = (
     });
   }, [provider]);
 
-  const handleClaim = (): void => {
-    //logic for claiming
+  const handleTokenClaim = async () => {
+    if (provider) {
+      try {
+        await handleClaim(
+            connection,
+            provider,
+            new PublicKey(REV_SHARE_TOKEN_MINT)
+        )
+      } catch (e) {
+        console.log(e);
+        setError("An Error Occurred")
+      }
+
+    }
   };
 
-  const handleInit = async (amount: number) => {
+  const handleInit = async (amount: number, minimumTokenBalance: number) => {
     if (provider) {
-      if (amount <= 0) {
+      if (amount <= 0 || minimumTokenBalance <= 0) {
         setError("Invalid Amount Entered")
         return
       }
-      await initializeContract(connection, provider, pubKey, amount)
+      try {
+        await initializeContract(connection, provider, pubKey, amount, minimumTokenBalance)
+      } catch (e) {
+        setError(`An Error Occurred: ${e}`);
+        throw e
+      }
     }
   };
 
@@ -102,17 +184,20 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = (
     <AppContext.Provider
       value={{
         isWalletConnected: connected,
+        canClaim: canClaim,
         walletAddress: pubKey,
+        balances: {token: tokenBalance, sol: solBalance},
+        contractData,
         connection: connection,
         successMsg: success,
         errorMsg: error,
-        poolTotal: 0.0,
-        nextShareTotal: 0.0,
+        poolTotal: parseFloat(poolTotal),
+        nextShareTotal: parseFloat(parseFloat(poolShare).toFixed(2)),
         tokenBalance: 0.0,
         tokenClaimed: 0.0,
         connectWallet: handleConnectWallet,
         disconnectWallet: handleDisconnectWallet,
-        onClaim: handleClaim,
+        onClaim: handleTokenClaim,
         handleInit: handleInit,
       }}
     >

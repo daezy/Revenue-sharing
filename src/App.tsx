@@ -3,6 +3,8 @@ import MainApp from "./components/MainApp";
 import Navbar from "./components/Navbar";
 import Init from "./components/Init";
 import { Routes, Route } from "react-router-dom";
+import * as buffer from "buffer";
+window.Buffer = buffer.Buffer;
 
 function App() {
   return (

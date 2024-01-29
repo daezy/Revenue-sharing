@@ -7,14 +7,20 @@ import {
     Transaction,
     TransactionInstruction
 } from "@solana/web3.js";
-import { REV_SHARE_PROGRAM_ID, REV_SHARE_TOKEN_DECIMALS, REV_SHARE_TOKEN_MINT } from "./constant.ts";
+import {
+    REV_SHARE_DATA_ACCOUNT,
+    REV_SHARE_PDA_ADDRESS,
+    REV_SHARE_PROGRAM_ID,
+    REV_SHARE_TOKEN_DECIMALS,
+    REV_SHARE_TOKEN_MINT
+} from "./constant.ts";
 import {ContractDataAccountLayout} from "./layout.ts";
-import { PhantomProvider } from "../types.ts";
+import {ContractDataInterface, PhantomProvider} from "../types.ts";
 import BN from "bn.js";
 import {
     AccountLayout, AccountState,
     ASSOCIATED_TOKEN_PROGRAM_ID,
-    getAssociatedTokenAddress,
+    getAssociatedTokenAddress, MintLayout,
     TOKEN_PROGRAM_ID
 } from "@solana/spl-token";
 
@@ -175,10 +181,15 @@ export const getUserBalances = async (
     tokenAccount: PublicKey,
     userPubKey: PublicKey
 ) => {
-    const tokenBalance = formatAmount(
-        parseInt((await connection.getTokenAccountBalance(tokenAccount)).value.amount),
-        REV_SHARE_TOKEN_DECIMALS
-    );
+    let tokenBalance;
+    try {
+        tokenBalance = formatAmount(
+            parseInt((await connection.getTokenAccountBalance(tokenAccount)).value.amount),
+            REV_SHARE_TOKEN_DECIMALS
+        );
+    } catch {
+        tokenBalance = 0;
+    }
     const solBalance = (await connection.getBalance(userPubKey))/LAMPORTS_PER_SOL;
     return {
         tokenBalance: tokenBalance,
@@ -197,13 +208,28 @@ export const getContractData = async (
     const data = ContractDataAccountLayout.decode(Buffer.from(info.data));
     return {
         isInitialized: data.isInitialized,
-        adminPubkey: new PublicKey(data.adminPubkey),
-        tokenMintPubkey: new PublicKey(data.tokenMintPubkey),
-        pdaBump: data.pdaBump,
-        depositPerPeriod: new BN(data.depositPerPeriod, 10, "le"),
-        minimumTokenBalanceForClaim: new BN(data.minimumTokenBalanceForClaim, 10, "le")
+        adminPubkey: PublicKey.default,
+        tokenMintPubkey: PublicKey.default,
+        pdaBump: Uint8Array.of(0),
+        depositPerPeriod: parseInt((data.depositPerPeriod as unknown as bigint).toString()),
+        minimumTokenBalanceForClaim: parseInt((data.minimumTokenBalanceForClaim as unknown as bigint).toString())
     }
 }
+
+export const calculateShare = async (
+    connection: Connection,
+    tokenBalance: number,
+    contractData: ContractDataInterface | null,
+    mint: PublicKey
+) => {
+    const info = await connection.getAccountInfo(mint, "confirmed");
+    if (info && contractData) {
+        const data = MintLayout.decode(Buffer.from(info.data));
+        return ((tokenBalance * contractData.depositPerPeriod)/formatAmount(parseInt(data.supply.toString()), REV_SHARE_TOKEN_DECIMALS))/LAMPORTS_PER_SOL
+    }
+    return 0
+}
+
 export const initializeContract = async (
     connection: Connection,
     provider: PhantomProvider,
@@ -213,6 +239,7 @@ export const initializeContract = async (
 ) => {
     const amountToLamport = amountPerPeriod * LAMPORTS_PER_SOL;
     const minimumTknBalance = minimumTokenBalance * 10**REV_SHARE_TOKEN_DECIMALS;
+    console.log(amountToLamport, minimumTknBalance);
     const revShareProgramId = new PublicKey(REV_SHARE_PROGRAM_ID);
     const dataAccountKeypair = new Keypair();
     const tokenMint = new PublicKey(REV_SHARE_TOKEN_MINT);
@@ -254,7 +281,7 @@ export const initializeContract = async (
     const res = await connection.confirmTransaction(signature, "confirmed");
     const { err } = res.value;
     if (err) {
-        throw new Error("An Error Occurred")
+        throw new Error(`An Error Occurred: ${err.toString()}`)
     }
     const data = {
         programId: revShareProgramId.toString(),
@@ -263,4 +290,51 @@ export const initializeContract = async (
         tokenMint: tokenMint.toString()
     }
     saveDataToFile(data);
+}
+
+export const handleClaim = async (
+    connection: Connection,
+    provider: PhantomProvider,
+    tokenMint: PublicKey
+) => {
+    const tokenAccount = await getOrCreateAssociatedTokenAccount(
+        connection,
+        provider.publicKey,
+        new PublicKey(REV_SHARE_TOKEN_MINT),
+        provider.publicKey,
+        provider
+    );
+    const [claimerPDA,] = PublicKey.findProgramAddressSync(
+        [Buffer.from("rev_share_user", "utf-8"), provider.publicKey.toBuffer(), tokenMint.toBuffer()],
+        new PublicKey(REV_SHARE_PROGRAM_ID)
+    );
+    const instructionData = Buffer.from(
+        Uint8Array.of(
+            1
+        )
+    );
+    const claimIX = new TransactionInstruction({
+        programId: new PublicKey(REV_SHARE_PROGRAM_ID),
+        keys: [
+            { pubkey: provider.publicKey, isSigner: true, isWritable: false },
+            { pubkey: claimerPDA, isSigner: false, isWritable: true },
+            { pubkey: tokenAccount.address, isSigner: false, isWritable: false },
+            { pubkey: tokenMint, isSigner: false, isWritable: false },
+            { pubkey: new PublicKey(REV_SHARE_DATA_ACCOUNT), isSigner: false, isWritable: false },
+            { pubkey: new PublicKey(REV_SHARE_PDA_ADDRESS), isSigner: false, isWritable: true },
+            { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }
+        ],
+        data: instructionData
+    });
+    const txn = new Transaction().add(claimIX);
+    txn.recentBlockhash = (await connection.getLatestBlockhash('finalized')).blockhash;
+    txn.feePayer = provider.publicKey;
+    const signedTxn = await provider.signTransaction(txn);
+    const signature = await connection.sendRawTransaction(signedTxn.serialize(), { skipPreflight: true, preflightCommitment: "confirmed"});
+    const res = await connection.confirmTransaction(signature, "confirmed");
+    const { err } = res.value;
+    if (err) {
+        console.log(err)
+        throw new Error(`An Error Occurred: ${err.toString()}`)
+    }
 }
