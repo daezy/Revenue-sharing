@@ -2,10 +2,14 @@ import React, { useContext, useState } from "react";
 import AppContext from "../context/AppContext";
 
 const Init = () => {
-  const [amount, setAmount] = useState<number>(0);
+  const [amount, setAmount] = useState<string>("");
+  const [minimumTokenBalance, setMinimumTokenBalance] = useState<string>("");
+
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
-    ctx.handleInit(amount)
+    if (amount && minimumTokenBalance) {
+      ctx.handleInit(parseFloat(amount), parseFloat(minimumTokenBalance))
+    }
   };
   const ctx = useContext(AppContext);
 
@@ -24,16 +28,23 @@ const Init = () => {
         )}
         <form action="" onSubmit={handleSubmit}>
           <input
-            type="number"
-            value={amount}
-            placeholder="Enter amount*"
-            className="w-full py-3 px-4 my-5 rounded-lg"
-            onChange={(e) => setAmount(Number(e.target.value))}
+              type="number"
+              value={amount}
+              placeholder="Enter amount of sol to deposit per period*"
+              className="w-full py-3 px-4 my-5 rounded-lg"
+              onChange={(e) => setAmount(e.target.value)}
+          />
+          <input
+              type="number"
+              value={minimumTokenBalance}
+              placeholder="Enter minimum token balance for claim*"
+              className="w-full py-3 px-4 my-5 rounded-lg"
+              onChange={(e) => setMinimumTokenBalance(e.target.value)}
           />
           <button
-            className="w-full text-center text-slate-100 bg-blue-600 hover:bg-blue-800 py-3 rounded-lg disabled:bg-slate-400"
-            type="submit"
-            disabled={!ctx.isWalletConnected}
+              className="w-full text-center text-slate-100 bg-blue-600 hover:bg-blue-800 py-3 rounded-lg disabled:bg-slate-400"
+              type="submit"
+              disabled={!ctx.isWalletConnected || !amount || !minimumTokenBalance}
           >
             Submit
           </button>
