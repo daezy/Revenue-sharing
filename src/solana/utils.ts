@@ -14,7 +14,7 @@ import {
     REV_SHARE_TOKEN_DECIMALS,
     REV_SHARE_TOKEN_MINT
 } from "./constant.ts";
-import {ContractDataAccountLayout} from "./layout.ts";
+import {ContractDataAccountLayout, UserDataLayout} from "./layout.ts";
 import {ContractDataInterface, PhantomProvider} from "../types.ts";
 import BN from "bn.js";
 import {
@@ -213,6 +213,26 @@ export const getContractData = async (
         pdaBump: Uint8Array.of(0),
         depositPerPeriod: parseInt((data.depositPerPeriod as unknown as bigint).toString()),
         minimumTokenBalanceForClaim: parseInt((data.minimumTokenBalanceForClaim as unknown as bigint).toString())
+    }
+}
+
+export const getUserData = async (
+    connection: Connection,
+    tokenMint: PublicKey,
+    provider: PhantomProvider
+) => {
+    const [accountPDA,] = PublicKey.findProgramAddressSync(
+        [Buffer.from("rev_share_user", "utf-8"), provider.publicKey.toBuffer(), tokenMint.toBuffer()],
+        new PublicKey(REV_SHARE_PROGRAM_ID)
+    );
+    const info = await connection.getAccountInfo(accountPDA, "confirmed");
+    if (!info) throw new Error('User Data AccountNotFoundError');
+    if (info.data.length != UserDataLayout.span) throw new Error('TokenInvalidAccountSizeError');
+    const data = UserDataLayout.decode(Buffer.from(info.data));
+    return {
+        isInitialized: data.isInitialized,
+        ownerPubKey: PublicKey.default,
+        lastClaimTs: parseInt((data.lastClaimTs as unknown as bigint).toString())
     }
 }
 

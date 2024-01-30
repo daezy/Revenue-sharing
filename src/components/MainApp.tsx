@@ -1,6 +1,7 @@
 import { useContext } from "react";
 import {
   AiOutlineSecurityScan,
+  AiOutlineClockCircle,
   AiOutlineHeatMap
 } from "react-icons/ai";
 import AppContext from "../context/AppContext";
@@ -26,7 +27,7 @@ const MainApp = () => {
 
         <h2 className="font-bold tracking-wider">REVENUE SHARING</h2>
         <div className="p-6 text-center text-slate-600">
-          <p>You must hold {formatAmount(ctx.contractData ? ctx.contractData.minimumTokenBalanceForClaim : 0, REV_SHARE_TOKEN_DECIMALS)} $CEX to claim</p>
+          <p>You must hold at least {formatAmount(ctx.contractData ? ctx.contractData.minimumTokenBalanceForClaim : 0, REV_SHARE_TOKEN_DECIMALS)} $CEX to claim</p>
         </div>
 
         <div id="details" className="">
@@ -43,12 +44,12 @@ const MainApp = () => {
               </span>
               <span>{ctx.nextShareTotal} SOL</span>
             </li>
-            {/*<li className="flex items-center justify-between p-3 mb-1">*/}
-            {/*  <span className="flex items-center">*/}
-            {/*    <AiOutlineClockCircle /> &nbsp; Next Share Unlock*/}
-            {/*  </span>*/}
-            {/*  <span>{Date.now()}</span>*/}
-            {/*</li>*/}
+            <li className="flex items-center justify-between p-3 mb-1">
+              <span className="flex items-center">
+                <AiOutlineClockCircle /> &nbsp; Next Share Unlock
+              </span>
+              <span>{(new Date(ctx.nextClaimTime * 1000)).toLocaleString()}</span>
+            </li>
             <li className="flex items-center justify-between p-3 mb-1">
               <span>$CEX Balance</span>
               <span>{ctx.balances.token} $CEX</span>
@@ -62,7 +63,7 @@ const MainApp = () => {
 
         <button
           className="w-full text-center text-slate-100 bg-blue-600 hover:bg-blue-800 py-3 rounded-lg disabled:bg-slate-400"
-          disabled={!ctx.isWalletConnected || !ctx.canClaim}
+          disabled={!ctx.isWalletConnected || !ctx.canClaim || (ctx.nextClaimTime*1000 >= Date.now())}
           onClick={ctx.onClaim}
         >
           Claim

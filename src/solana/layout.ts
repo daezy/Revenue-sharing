@@ -11,6 +11,12 @@ export interface ContractData {
     minimumTokenBalanceForClaim: Uint8Array;
 }
 
+export interface UserData {
+    isInitialized: number;
+    ownerPubkey: Uint8Array;
+    lastClaimTs: Uint8Array;
+}
+
 export const ContractDataAccountLayout = struct<ContractData>([
     u8('isInitialized'),
     publicKey('adminPubKey'),
@@ -19,3 +25,9 @@ export const ContractDataAccountLayout = struct<ContractData>([
     u64('depositPerPeriod'),
     u64('minimumTokenBalanceForClaim')
 ]);
+
+export const UserDataLayout = struct<UserData>([
+    u8('isInitialized'),
+    publicKey('ownerPubkey'),
+    u64('lastClaimTs'),
+])

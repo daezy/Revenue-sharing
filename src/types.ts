@@ -13,6 +13,7 @@ export type AppContextType = {
     nextShareTotal: number;
     tokenBalance: number;
     tokenClaimed: number;
+    nextClaimTime: number;
     connectWallet: () => void;
     disconnectWallet: () => void;
     onClaim: () => void;
@@ -49,4 +50,10 @@ export interface ContractDataInterface {
     pdaBump: Uint8Array,
     depositPerPeriod: number,
     minimumTokenBalanceForClaim: number,
+}
+
+export interface UserDataInterface {
+    isInitialized: number;
+    ownerPubkey: PublicKey;
+    lastClaimTs: number;
 }

@@ -15,7 +15,7 @@ import {
   calculateShare, formatAmount,
   getContractData,
   getOrCreateAssociatedTokenAccount,
-  getUserBalances, handleClaim,
+  getUserBalances, getUserData, handleClaim,
   initializeContract
 } from "../solana/utils.ts";
 
@@ -32,6 +32,7 @@ const AppContext = React.createContext<AppContextType>({
   nextShareTotal: 0.0,
   tokenBalance: 0.0,
   tokenClaimed: 0.0,
+  nextClaimTime: 0,
   connectWallet: () => {},
   disconnectWallet: () => {},
   onClaim: () => {},
@@ -46,13 +47,14 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = (
   const [connection, setConnection] = useState<Connection>(new Connection(SOLANA_LOCAL_NET_RPC_URL));
   const [pubKey, setPubKey] = useState<PublicKey>(PublicKey.default);
   const [success, setSuccess] = useState("");
-  const [error, setError] = useState("");
+  const [ error, setError] = useState("");
   const [ tokenBalance, setTokenBalance ] = useState("0");
   const [ solBalance, setSolBalance ] = useState("0");
   const [ contractData, setContractData ] = useState<ContractDataInterface | null>(null);
   const [ poolTotal, setPoolTotal ] = useState("0");
   const [ poolShare, setPoolShare ] = useState("0");
   const [ canClaim, setCanClaim ] = useState(false);
+  const [ nextClaimTime, setNextClaimTime ] = useState(0);
 
   useEffect(() => {
     // logic to fetch any data or connect to wallet once app launches
@@ -80,6 +82,16 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = (
         globCData = cData;
       } catch (e) {
         setError(`Error Fetching contract account ${e}`)
+      }
+      try {
+        const userData = await getUserData(connection, new PublicKey(REV_SHARE_TOKEN_MINT), provider);
+        if (userData.lastClaimTs == 0) {
+          setNextClaimTime(Date.now())
+        } else {
+          setNextClaimTime(userData.lastClaimTs + (24*60*60))
+        }
+      } catch (e) {
+        setError(`Error Fetching user Data ${e}`)
       }
       const userTokenAccount = await getOrCreateAssociatedTokenAccount(
           connection,
@@ -195,6 +207,7 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = (
         nextShareTotal: parseFloat(parseFloat(poolShare).toFixed(2)),
         tokenBalance: 0.0,
         tokenClaimed: 0.0,
+        nextClaimTime: nextClaimTime,
         connectWallet: handleConnectWallet,
         disconnectWallet: handleDisconnectWallet,
         onClaim: handleTokenClaim,
