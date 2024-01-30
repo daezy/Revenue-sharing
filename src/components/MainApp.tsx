@@ -48,7 +48,7 @@ const MainApp = () => {
               <span className="flex items-center">
                 <AiOutlineClockCircle /> &nbsp; Next Share Unlock
               </span>
-              <span>{(new Date(ctx.nextClaimTime * 1000)).toLocaleString()}</span>
+              <span>{ctx.nextClaimTime != 0 && (ctx.nextClaimTime *1000) > Date.now() ? (new Date(ctx.nextClaimTime * 1000)).toLocaleString() : "Now"}</span>
             </li>
             <li className="flex items-center justify-between p-3 mb-1">
               <span>$CEX Balance</span>
@@ -63,7 +63,7 @@ const MainApp = () => {
 
         <button
           className="w-full text-center text-slate-100 bg-blue-600 hover:bg-blue-800 py-3 rounded-lg disabled:bg-slate-400"
-          disabled={!ctx.isWalletConnected || !ctx.canClaim || (ctx.nextClaimTime*1000 >= Date.now())}
+          disabled={!ctx.isWalletConnected || !ctx.canClaim || (ctx.nextClaimTime != 0 && ctx.nextClaimTime*1000 >= Date.now())}
           onClick={ctx.onClaim}
         >
           Claim

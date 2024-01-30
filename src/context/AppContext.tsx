@@ -151,6 +151,7 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = (
             provider,
             new PublicKey(REV_SHARE_TOKEN_MINT)
         )
+        setSuccess("SOL Claimed Successfully!!")
       } catch (e) {
         console.log(e);
         setError("An Error Occurred")
